@@ -119,7 +119,7 @@ void Mrm_us1::readingsPrint() {
 @return - started or not
 */
 bool Mrm_us1::started(uint8_t deviceNumber) {
-	if (millis() - (*_lastReadingMs)[deviceNumber] > MRM_US1__INACTIVITY_ALLOWED_MS || (*_lastReadingMs)[deviceNumber] == 0) {
+	if (millis() - (*_lastReadingMs)[deviceNumber] > MRM_US1_INACTIVITY_ALLOWED_MS || (*_lastReadingMs)[deviceNumber] == 0) {
 		//print("Start mrm-us1%i \n\r", deviceNumber); 
 		for (uint8_t i = 0; i < 8; i++) { // 8 tries
 			start(deviceNumber, 0);

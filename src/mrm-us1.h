@@ -26,7 +26,7 @@ Licence: You can use this code any way you like.
 #define CAN_ID_US1_7_IN 0x37E
 #define CAN_ID_US1_7_OUT 0x37F
 
-#define MRM_US1__INACTIVITY_ALLOWED_MS 10000
+#define MRM_US1_INACTIVITY_ALLOWED_MS 10000
 
 
 class Mrm_us1 : public SensorBoard
