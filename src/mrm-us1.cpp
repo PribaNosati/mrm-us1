@@ -7,7 +7,7 @@
 @param hardwareSerial - Serial, Serial1, Serial2,... - an optional serial port, for example for Bluetooth communication
 @param maxNumberOfBoards - maximum number of boards
 */
-Mrm_us1::Mrm_us1(Robot* robot, uint8_t maxNumberOfBoards) : SensorBoard(robot, 1, "US1", maxNumberOfBoards, ID_MRM_US1, 1) {
+Mrm_us1::Mrm_us1(uint8_t maxNumberOfBoards) : SensorBoard(1, "US1", maxNumberOfBoards, ID_MRM_US1, 1) {
 	readings = new std::vector<uint16_t>(maxNumberOfBoards);
 }
 
@@ -55,7 +55,7 @@ void Mrm_us1::add(char * deviceName)
 		canOut = CAN_ID_US1_7_OUT;
 		break;
 	default:
-		sprintf(errorMessage, "Too many %s: %i.", _boardsName, nextFree);
+		sprintf(errorMessage, "Too many %s: %i.", _boardsName.c_str(), nextFree);
 		return;
 	}
 
@@ -66,24 +66,21 @@ void Mrm_us1::add(char * deviceName)
 @param data - 8 bytes from CAN Bus message.
 @param length - number of data bytes
 */
-bool Mrm_us1::messageDecode(uint32_t canId, uint8_t data[8], uint8_t length) {
-	for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) 
-		if (isForMe(canId, deviceNumber)) {
-			if (!messageDecodeCommon(canId, data, deviceNumber)) {
-				switch (data[0]) {
+bool Mrm_us1::messageDecode(CANMessage& message) {
+	for (Device& device : devices)
+		if (isForMe(message.id, device)) {
+			if (!messageDecodeCommon(message, device)) {
+				switch (message.data[0]) {
 					case COMMAND_SENSORS_MEASURE_SENDING:
 					{
-						uint16_t mm = (data[2] << 8) | data[1];
-						(*readings)[deviceNumber] = mm;
-						(*_lastReadingMs)[deviceNumber] = millis();
+						uint16_t mm = (message.data[2] << 8) | message.data[1];
+						(*readings)[device.number] = mm;
+						device.lastReadingsMs = millis();
 					}
 					break;
 				// }
 				default:
-					print("Unknown command. ");
-					messagePrint(canId, length, data, false);
-					errorCode = 204;
-					errorInDeviceNumber = deviceNumber;
+					errorAdd(message, ERROR_COMMAND_UNKNOWN, false, true);
 				}
 			}
 			return true;
@@ -100,7 +97,7 @@ uint16_t Mrm_us1::reading(uint8_t deviceNumber) {
 		strcpy(errorMessage, "mrm-us1 doesn't exist");
 		return 0;
 	}
-	alive(deviceNumber, true);
+	aliveWithOptionalScan(&devices[deviceNumber], true);
 	if (started(deviceNumber))
 		return (*readings)[deviceNumber];
 	else
@@ -111,8 +108,8 @@ uint16_t Mrm_us1::reading(uint8_t deviceNumber) {
 */
 void Mrm_us1::readingsPrint() {
 	print("US:");
-	for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) 
-			print(" %3i", (*readings)[deviceNumber]);
+	for (Device& device: devices)
+			print(" %3i", (*readings)[device.number]);
 }
 
 /** If sensor not started, start it and wait for 1. message
@@ -120,21 +117,21 @@ void Mrm_us1::readingsPrint() {
 @return - started or not
 */
 bool Mrm_us1::started(uint8_t deviceNumber) {
-	if (millis() - (*_lastReadingMs)[deviceNumber] > MRM_US1_INACTIVITY_ALLOWED_MS || (*_lastReadingMs)[deviceNumber] == 0) {
+	if (millis() - devices[deviceNumber].lastReadingsMs > MRM_US1_INACTIVITY_ALLOWED_MS || devices[deviceNumber].lastReadingsMs == 0) {
 		//print("Start mrm-us1%i \n\r", deviceNumber); 
 		for (uint8_t i = 0; i < 8; i++) { // 8 tries
-			start(deviceNumber, 0);
+			start(&devices[deviceNumber], 0);
 			// Wait for 1. message.
 			uint32_t startMs = millis();
 			while (millis() - startMs < 50) {
-				if (millis() - (*_lastReadingMs)[deviceNumber] < 100) {
+				if (millis() - devices[deviceNumber].lastReadingsMs < 100) {
 					//print("US confirmed\n\r");
 					return true;
 				}
-				robotContainer->delayMs(1);
+				delayMs(1);
 			}
 		}
-		sprintf(errorMessage, "%s %i dead.", _boardsName, deviceNumber);
+		sprintf(errorMessage, "%s %i dead.", _boardsName.c_str(), deviceNumber);
 		return false;
 	}
 	else
@@ -145,15 +142,15 @@ bool Mrm_us1::started(uint8_t deviceNumber) {
 */
 void Mrm_us1::test()
 {
-	static uint32_t lastMs = 0;
+	static uint64_t lastMs = 0;
 
 	if (millis() - lastMs > 300) {
 		uint8_t pass = 0;
-		for (uint8_t deviceNumber = 0; deviceNumber < nextFree; deviceNumber++) {
-			if (alive(deviceNumber)) {
+		for (Device& device: devices) {
+			if (device.alive) {
 				if (pass++)
 					print("| ");
-				print("%i ", reading(deviceNumber));
+				print("%i ", reading(device.number));
 			}
 		}
 		lastMs = millis();

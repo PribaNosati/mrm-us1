@@ -47,7 +47,7 @@ public:
 	@param hardwareSerial - Serial, Serial1, Serial2,... - an optional serial port, for example for Bluetooth communication
 	@param maxNumberOfBoards - maximum number of boards
 	*/
-	Mrm_us1(Robot* robot = NULL, uint8_t maxNumberOfBoards = 4);
+	Mrm_us1(uint8_t maxNumberOfBoards = 4);
 
 	~Mrm_us1();
 
@@ -61,7 +61,7 @@ public:
 	@param data - 8 bytes from CAN Bus message.
 	@param length - number of data bytes
 	*/
-	bool messageDecode(uint32_t canId, uint8_t data[8], uint8_t length);
+bool messageDecode(CANMessage& message);
 
 	/** Analog readings
 	@param sensorNumber - Sensor's ordinal number. Each call of function add() assigns a increasing number to the sensor, starting with 0.
